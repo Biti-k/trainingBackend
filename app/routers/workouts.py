@@ -107,7 +107,7 @@ def update_workout(
 
 @router.delete("/{workout_id}", status_code=204)
 def delete_workout(workout_id: int, db: Session = Depends(get_db)):
-    workout = db.query(models.Workout).filter(models.Workout.id == workout_id).first()
+    workout = db.query(models.Workout).options(joinedload(models.Workout.sets)).filter(models.Workout.id == workout_id).first()
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
     db.delete(workout)
