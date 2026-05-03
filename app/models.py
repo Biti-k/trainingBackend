@@ -25,7 +25,7 @@ class Workout(Base):
     notes = Column(Text, nullable=True)
     bodyweight = Column(Float, nullable=True)
 
-    sets = relationship("Set", back_populates="workout")
+    sets = relationship("Set", back_populates="workout", cascade="all, delete-orphan")
 
 
 class Set(Base):
