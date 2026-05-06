@@ -3,10 +3,27 @@ from datetime import datetime
 from typing import Optional
 
 
+class ProfileBase(BaseModel):
+    name: str
+
+
+class ProfileCreate(ProfileBase):
+    pass
+
+
+class Profile(ProfileBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class ExerciseBase(BaseModel):
     name: str
     muscle_group: Optional[str] = None
     description: Optional[str] = None
+    profile_id: int
 
 
 class ExerciseCreate(ExerciseBase):
@@ -46,6 +63,7 @@ class WorkoutBase(BaseModel):
     date: Optional[datetime] = None
     notes: Optional[str] = None
     bodyweight: Optional[float] = None
+    profile_id: int
 
 
 class WorkoutCreate(WorkoutBase):
