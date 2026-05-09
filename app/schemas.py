@@ -15,6 +15,7 @@ class ExerciseCreate(ExerciseBase):
 
 class Exercise(ExerciseBase):
     id: int
+    profile_id: Optional[int] = None
     created_at: datetime
 
     class Config:
@@ -54,6 +55,7 @@ class WorkoutCreate(WorkoutBase):
 
 class Workout(WorkoutBase):
     id: int
+    profile_id: Optional[int] = None
     sets: list[Set] = []
 
     class Config:
@@ -86,3 +88,17 @@ class WorkoutSummary(BaseModel):
     avg_bodyweight: Optional[float] = None
     exercises_count: int
     date_range: tuple[str, str]
+
+class ProfileBase(BaseModel):
+    name: str
+    profile_image: Optional[str] = None
+
+class ProfileCreate(ProfileBase):
+    pass
+
+class Profile(ProfileBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import exercises, workouts, analytics
+from app.routers import exercises, workouts, analytics, profiles, auth
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,9 +19,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(exercises.router)
 app.include_router(workouts.router)
 app.include_router(analytics.router)
+app.include_router(profiles.router)
 
 
 @app.get("/")
