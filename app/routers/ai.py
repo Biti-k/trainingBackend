@@ -89,7 +89,7 @@ def _call_gemini(prompt: str) -> str:
     """Llama a Gemini y devuelve el texto de respuesta. Maneja errores comunes."""
     try:
         response = _client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.1-flash-lite",
             contents=prompt,
             config=_CONFIG,
         )
