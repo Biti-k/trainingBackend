@@ -13,11 +13,9 @@ def list_exercises(
     muscle_group: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
-    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -28,9 +26,8 @@ def list_exercises(
 
 
 @router.get("/{exercise_id}", response_model=schemas.Exercise)
-def get_exercise(exercise_id: int, profile_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+def get_exercise(exercise_id: int, profile_id: int, db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -44,9 +41,8 @@ def get_exercise(exercise_id: int, profile_id: int, current_user: models.User = 
 
 
 @router.post("/", response_model=schemas.Exercise, status_code=201)
-def create_exercise(profile_id: int, exercise: schemas.ExerciseCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+def create_exercise(profile_id: int, exercise: schemas.ExerciseCreate, db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -65,10 +61,9 @@ def create_exercise(profile_id: int, exercise: schemas.ExerciseCreate, current_u
 
 @router.put("/{exercise_id}", response_model=schemas.Exercise)
 def update_exercise(
-    exercise_id: int, profile_id: int, exercise_update: schemas.ExerciseCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)
+    exercise_id: int, profile_id: int, exercise_update: schemas.ExerciseCreate, db: Session = Depends(get_db)
 ):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -86,9 +81,8 @@ def update_exercise(
 
 
 @router.delete("/{exercise_id}", status_code=204)
-def delete_exercise(exercise_id: int, profile_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+def delete_exercise(exercise_id: int, profile_id: int, db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 

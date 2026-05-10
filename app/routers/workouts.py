@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app import models, schemas
-from app.routers.auth import get_current_user
 from datetime import datetime
 from typing import Optional
 
@@ -16,11 +15,9 @@ def list_workouts(
     limit: int = 50,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -33,9 +30,8 @@ def list_workouts(
 
 
 @router.get("/{workout_id}", response_model=schemas.Workout)
-def get_workout(workout_id: int, profile_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+def get_workout(workout_id: int, profile_id: int, db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -54,9 +50,8 @@ def get_workout(workout_id: int, profile_id: int, current_user: models.User = De
 
 
 @router.post("/", response_model=schemas.Workout, status_code=201)
-def create_workout(profile_id: int, workout: schemas.WorkoutCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+def create_workout(profile_id: int, workout: schemas.WorkoutCreate, db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -93,10 +88,9 @@ def create_workout(profile_id: int, workout: schemas.WorkoutCreate, current_user
 
 @router.put("/{workout_id}", response_model=schemas.Workout)
 def update_workout(
-    workout_id: int, profile_id: int, workout_update: schemas.WorkoutCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)
+    workout_id: int, profile_id: int, workout_update: schemas.WorkoutCreate, db: Session = Depends(get_db)
 ):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -136,9 +130,8 @@ def update_workout(
 
 
 @router.delete("/{workout_id}", status_code=204)
-def delete_workout(workout_id: int, profile_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Verify profile belongs to user
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id, models.Profile.user_id == current_user.id).first()
+def delete_workout(workout_id: int, profile_id: int, db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
