@@ -10,13 +10,18 @@ router = APIRouter(prefix="/workouts", tags=["workouts"])
 
 @router.get("/", response_model=list[schemas.Workout])
 def list_workouts(
+    profile_id: int,
     skip: int = 0,
     limit: int = 50,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(models.Workout).options(joinedload(models.Workout.sets))
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    query = db.query(models.Workout).options(joinedload(models.Workout.sets)).filter(models.Workout.profile_id == profile_id)
     if start_date:
         query = query.filter(models.Workout.date >= start_date)
     if end_date:
@@ -25,11 +30,18 @@ def list_workouts(
 
 
 @router.get("/{workout_id}", response_model=schemas.Workout)
-def get_workout(workout_id: int, db: Session = Depends(get_db)):
+def get_workout(workout_id: int, profile_id: int, db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
     workout = (
         db.query(models.Workout)
         .options(joinedload(models.Workout.sets))
-        .filter(models.Workout.id == workout_id)
+        .filter(
+            models.Workout.id == workout_id,
+            models.Workout.profile_id == profile_id
+        )
         .first()
     )
     if not workout:
@@ -38,11 +50,16 @@ def get_workout(workout_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=schemas.Workout, status_code=201)
-def create_workout(workout: schemas.WorkoutCreate, db: Session = Depends(get_db)):
+def create_workout(profile_id: int, workout: schemas.WorkoutCreate, db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
     db_workout = models.Workout(
         date=workout.date or datetime.utcnow(),
         notes=workout.notes,
         bodyweight=workout.bodyweight,
+        profile_id=profile_id,
     )
     db.add(db_workout)
     db.flush()
@@ -71,9 +88,16 @@ def create_workout(workout: schemas.WorkoutCreate, db: Session = Depends(get_db)
 
 @router.put("/{workout_id}", response_model=schemas.Workout)
 def update_workout(
-    workout_id: int, workout_update: schemas.WorkoutCreate, db: Session = Depends(get_db)
+    workout_id: int, profile_id: int, workout_update: schemas.WorkoutCreate, db: Session = Depends(get_db)
 ):
-    workout = db.query(models.Workout).filter(models.Workout.id == workout_id).first()
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    workout = db.query(models.Workout).filter(
+        models.Workout.id == workout_id,
+        models.Workout.profile_id == profile_id
+    ).first()
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
 
@@ -106,8 +130,15 @@ def update_workout(
 
 
 @router.delete("/{workout_id}", status_code=204)
-def delete_workout(workout_id: int, db: Session = Depends(get_db)):
-    workout = db.query(models.Workout).options(joinedload(models.Workout.sets)).filter(models.Workout.id == workout_id).first()
+def delete_workout(workout_id: int, profile_id: int, db: Session = Depends(get_db)):
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    workout = db.query(models.Workout).options(joinedload(models.Workout.sets)).filter(
+        models.Workout.id == workout_id,
+        models.Workout.profile_id == profile_id
+    ).first()
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
     db.delete(workout)
