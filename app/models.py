@@ -5,17 +5,17 @@ from datetime import datetime
 from app.database import Base
 
 
-class User(Base):
-    __tablename__ = "users"
+# class User(Base):
+#     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, nullable=False, index=True)
-    email = Column(String, unique=True, nullable=False, index=True)
-    hashed_password = Column(String, nullable=False)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+#     id = Column(Integer, primary_key=True, index=True)
+#     username = Column(String, unique=True, nullable=False, index=True)
+#     email = Column(String, unique=True, nullable=False, index=True)
+#     hashed_password = Column(String, nullable=False)
+#     is_active = Column(Boolean, default=True)
+#     created_at = Column(DateTime, default=datetime.utcnow)
 
-    profiles = relationship("Profile", backref="user", cascade="all, delete-orphan")
+#     profiles = relationship("Profile", backref="user", cascade="all, delete-orphan")
 
 
 class Exercise(Base):
@@ -65,7 +65,6 @@ class Profile(Base):
     name = Column(String, unique=True, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     profile_image = Column(String, nullable=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     exercises = relationship("Exercise", backref="profile", cascade="all, delete-orphan")
     workouts = relationship("Workout", backref="profile", cascade="all, delete-orphan")
