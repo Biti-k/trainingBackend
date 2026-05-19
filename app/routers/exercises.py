@@ -45,13 +45,7 @@ def create_exercise(profile_id: int, exercise: schemas.ExerciseCreate, db: Sessi
     profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-
-    existing = db.query(models.Exercise).filter(
-        models.Exercise.name == exercise.name,
-        models.Exercise.profile_id == profile_id
-    ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Exercise already exists")
+    
     db_exercise = models.Exercise(**exercise.model_dump(), profile_id=profile_id)
     db.add(db_exercise)
     db.commit()
