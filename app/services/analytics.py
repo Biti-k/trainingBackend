@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 
-def get_workout_summary(db: Session, profile_id: int) -> dict:
-    workouts = db.query(models.Workout).filter(models.Workout.profile_id == profile_id).all()
+def get_workout_summary(db: Session, user_id: int) -> dict:
+    workouts = db.query(models.Workout).filter(models.Workout.user_id == user_id).all()
     if not workouts:
         return {
             "total_workouts": 0,
@@ -17,7 +17,7 @@ def get_workout_summary(db: Session, profile_id: int) -> dict:
             "date_range": ["", ""],
         }
 
-    sets = db.query(models.Set).join(models.Workout).filter(models.Workout.profile_id == profile_id).all()
+    sets = db.query(models.Set).join(models.Workout).filter(models.Workout.user_id == user_id).all()
     df = pd.DataFrame([
         {
             "weight": s.weight,
@@ -42,7 +42,7 @@ def get_workout_summary(db: Session, profile_id: int) -> dict:
 
 
 def get_volume_by_exercise(
-    db: Session, profile_id: int, exercise_name: Optional[str] = None, days: int = 90
+    db: Session, user_id: int, exercise_name: Optional[str] = None, days: int = 90
 ) -> list[dict]:
     cutoff = datetime.utcnow() - timedelta(days=days)
 
@@ -51,7 +51,7 @@ def get_volume_by_exercise(
         .join(models.Workout, models.Set.workout_id == models.Workout.id)
         .join(models.Exercise, models.Set.exercise_id == models.Exercise.id)
         .filter(models.Workout.date >= cutoff)
-        .filter(models.Workout.profile_id == profile_id)
+        .filter(models.Workout.user_id == user_id)
     )
 
     if exercise_name:
@@ -83,13 +83,13 @@ def get_volume_by_exercise(
 
 
 def get_progression_stats(
-    db: Session, profile_id: int, exercise_name: Optional[str] = None
+    db: Session, user_id: int, exercise_name: Optional[str] = None
 ) -> list[dict]:
     query = (
         db.query(models.Set, models.Workout, models.Exercise)
         .join(models.Workout, models.Set.workout_id == models.Workout.id)
         .join(models.Exercise, models.Set.exercise_id == models.Exercise.id)
-        .filter(models.Workout.profile_id == profile_id)
+        .filter(models.Workout.user_id == user_id)
     )
 
     if exercise_name:
@@ -147,14 +147,14 @@ def get_progression_stats(
     return results
 
 
-def get_bodyweight_trend(db: Session, profile_id: int, days: int = 90) -> list[dict]:
+def get_bodyweight_trend(db: Session, user_id: int, days: int = 90) -> list[dict]:
     cutoff = datetime.utcnow() - timedelta(days=days)
 
     workouts = (
         db.query(models.Workout)
         .filter(models.Workout.date >= cutoff)
         .filter(models.Workout.bodyweight.isnot(None))
-        .filter(models.Workout.profile_id == profile_id)
+        .filter(models.Workout.user_id == user_id)
         .order_by(models.Workout.date)
         .all()
     )
@@ -171,13 +171,13 @@ def get_bodyweight_trend(db: Session, profile_id: int, days: int = 90) -> list[d
     return df.to_dict(orient="records")
 
 
-def get_strength_metrics(db: Session, profile_id: int, exercise_name: str) -> dict:
+def get_strength_metrics(db: Session, user_id: int, exercise_name: str) -> dict:
     query = (
         db.query(models.Set, models.Workout.date)
         .join(models.Workout, models.Set.workout_id == models.Workout.id)
         .join(models.Exercise, models.Set.exercise_id == models.Exercise.id)
         .filter(models.Exercise.name == exercise_name)
-        .filter(models.Workout.profile_id == profile_id)
+        .filter(models.Workout.user_id == user_id)
     )
 
     rows = query.all()

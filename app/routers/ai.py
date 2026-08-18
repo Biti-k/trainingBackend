@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime, timedelta
 from google import genai
 from google.genai import types
 import os
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app import models
 
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -31,7 +31,6 @@ _CONFIG = types.GenerateContentConfig(
 
 class ChatRequest(BaseModel):
     message: str
-    profile_id: Optional[int] = None  # si se pasa, incluye contexto del perfil
 
 
 class ChatResponse(BaseModel):
@@ -44,19 +43,15 @@ class AnalysisResponse(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _build_profile_context(profile_id: int, db: Session) -> str:
-    """Construye un resumen textual del perfil para pasarlo como contexto a la IA."""
-
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Perfil no encontrado")
+def _build_user_context(user: models.User, db: Session) -> str:
+    """Construye un resumen textual del usuario para pasarlo como contexto a la IA."""
 
     # Últimos 30 días de entrenos
     since = datetime.utcnow() - timedelta(days=30)
     workouts = (
         db.query(models.Workout)
         .filter(
-            models.Workout.profile_id == profile_id,
+            models.Workout.user_id == user.id,
             models.Workout.date >= since,
         )
         .order_by(models.Workout.date.desc())
@@ -64,10 +59,12 @@ def _build_profile_context(profile_id: int, db: Session) -> str:
         .all()
     )
 
-    if not workouts:
-        return f"Perfil: {profile.name}. Sin entrenos registrados en los últimos 30 días."
+    display_name = user.name or user.email
 
-    lines = [f"Perfil: {profile.name}"]
+    if not workouts:
+        return f"Usuario: {display_name}. Sin entrenos registrados en los últimos 30 días."
+
+    lines = [f"Usuario: {display_name}"]
     lines.append(f"Entrenos recientes ({len(workouts)} en los últimos 30 días):")
 
     for w in workouts:
@@ -107,34 +104,37 @@ def _call_gemini(prompt: str) -> str:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/chat", response_model=ChatResponse, summary="Chat general con la IA")
-def chat(request: ChatRequest, db: Session = Depends(get_db)):
+def chat(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """
-    Chat libre con el asistente de fitness.
-    Si incluyes `profile_id`, la IA tendrá contexto de tus últimos entrenos.
+    Chat libre con el asistente de fitness, con contexto de tus últimos entrenos.
     """
-    if request.profile_id:
-        context = _build_profile_context(request.profile_id, db)
-        prompt = f"{context}\n\nPregunta del usuario: {request.message}"
-    else:
-        prompt = request.message
+    context = _build_user_context(current_user, db)
+    prompt = f"{context}\n\nPregunta del usuario: {request.message}"
 
     reply = _call_gemini(prompt)
     return ChatResponse(reply=reply)
 
 
 @router.get(
-    "/analyze/{profile_id}",
+    "/analyze",
     response_model=AnalysisResponse,
-    summary="Análisis automático del progreso del perfil",
+    summary="Análisis automático del progreso del usuario",
 )
-def analyze_profile(profile_id: int, db: Session = Depends(get_db)):
+def analyze_progress(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """
-    Analiza los últimos 30 días de entrenos del perfil y devuelve:
+    Analiza los últimos 30 días de entrenos del usuario y devuelve:
     - Resumen de volumen y progresión
     - Puntos fuertes detectados
     - Sugerencias de mejora
     """
-    context = _build_profile_context(profile_id, db)
+    context = _build_user_context(current_user, db)
 
     prompt = (
         f"{context}\n\n"
@@ -151,20 +151,23 @@ def analyze_profile(profile_id: int, db: Session = Depends(get_db)):
 
 
 @router.get(
-    "/suggest-workout/{profile_id}",
+    "/suggest-workout",
     response_model=AnalysisResponse,
     summary="Sugerencia del próximo entreno",
 )
-def suggest_next_workout(profile_id: int, db: Session = Depends(get_db)):
+def suggest_next_workout(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     """
     Basándose en el historial reciente, sugiere qué entrenar en la próxima sesión
     (grupos musculares, ejercicios, series/reps orientativas).
     """
-    context = _build_profile_context(profile_id, db)
+    context = _build_user_context(current_user, db)
 
     last_workout = (
         db.query(models.Workout)
-        .filter(models.Workout.profile_id == profile_id)
+        .filter(models.Workout.user_id == current_user.id)
         .order_by(models.Workout.date.desc())
         .first()
     )

@@ -1,10 +1,11 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import exercises, workouts, analytics, profiles, ai
+from app.routers import auth, exercises, workouts, analytics, ai, exercise_catalog
 
 Base.metadata.create_all(bind=engine)
 
@@ -14,19 +15,22 @@ app = FastAPI(
     version="1.0.0",
 )
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:4321")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[FRONTEND_URL],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(exercises.router)
 app.include_router(workouts.router)
 app.include_router(analytics.router)
-app.include_router(profiles.router)
 app.include_router(ai.router)
+app.include_router(exercise_catalog.router)
 
 @app.get("/")
 def root():

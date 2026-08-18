@@ -7,6 +7,7 @@ class ExerciseBase(BaseModel):
     name: str
     muscle_group: Optional[str] = None
     description: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class ExerciseCreate(ExerciseBase):
@@ -15,8 +16,27 @@ class ExerciseCreate(ExerciseBase):
 
 class Exercise(ExerciseBase):
     id: int
-    profile_id: Optional[int] = None
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ExerciseCatalogItem(BaseModel):
+    id: int
+    external_id: str
+    name: str
+    muscle_group: Optional[str] = None
+    primary_muscles: Optional[str] = None
+    secondary_muscles: Optional[str] = None
+    category: Optional[str] = None
+    equipment: Optional[str] = None
+    level: Optional[str] = None
+    mechanic: Optional[str] = None
+    force: Optional[str] = None
+    instructions: Optional[str] = None
+    image_url: Optional[str] = None
+    image_url_2: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -55,7 +75,6 @@ class WorkoutCreate(WorkoutBase):
 
 class Workout(WorkoutBase):
     id: int
-    profile_id: Optional[int] = None
     sets: list[Set] = []
 
     class Config:
@@ -89,16 +108,11 @@ class WorkoutSummary(BaseModel):
     exercises_count: int
     date_range: tuple[str, str]
 
-class ProfileBase(BaseModel):
-    name: str
-    profile_image: Optional[str] = None
-
-class ProfileCreate(ProfileBase):
-    pass
-
-class Profile(ProfileBase):
+class User(BaseModel):
     id: int
-    created_at: datetime
+    email: str
+    name: Optional[str] = None
+    picture: Optional[str] = None
 
     class Config:
         from_attributes = True

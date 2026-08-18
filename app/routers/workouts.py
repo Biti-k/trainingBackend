@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
+from app.dependencies import get_current_user
 from app import models, schemas
 from datetime import datetime
 from typing import Optional
@@ -8,20 +9,29 @@ from typing import Optional
 router = APIRouter(prefix="/workouts", tags=["workouts"])
 
 
+def _assert_owned_exercises(db: Session, user_id: int, exercise_ids: set[int]):
+    if not exercise_ids:
+        return
+    owned = {
+        row[0] for row in db.query(models.Exercise.id).filter(
+            models.Exercise.id.in_(exercise_ids), models.Exercise.user_id == user_id,
+        ).all()
+    }
+    missing = exercise_ids - owned
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Exercises not found or not yours: {sorted(missing)}")
+
+
 @router.get("/", response_model=list[schemas.Workout])
 def list_workouts(
-    profile_id: int,
     skip: int = 0,
     limit: int = 50,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
-    query = db.query(models.Workout).options(joinedload(models.Workout.sets)).filter(models.Workout.profile_id == profile_id)
+    query = db.query(models.Workout).options(joinedload(models.Workout.sets)).filter(models.Workout.user_id == current_user.id)
     if start_date:
         query = query.filter(models.Workout.date >= start_date)
     if end_date:
@@ -30,17 +40,17 @@ def list_workouts(
 
 
 @router.get("/{workout_id}", response_model=schemas.Workout)
-def get_workout(workout_id: int, profile_id: int, db: Session = Depends(get_db)):
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
+def get_workout(
+    workout_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     workout = (
         db.query(models.Workout)
         .options(joinedload(models.Workout.sets))
         .filter(
             models.Workout.id == workout_id,
-            models.Workout.profile_id == profile_id
+            models.Workout.user_id == current_user.id
         )
         .first()
     )
@@ -50,16 +60,18 @@ def get_workout(workout_id: int, profile_id: int, db: Session = Depends(get_db))
 
 
 @router.post("/", response_model=schemas.Workout, status_code=201)
-def create_workout(profile_id: int, workout: schemas.WorkoutCreate, db: Session = Depends(get_db)):
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+def create_workout(
+    workout: schemas.WorkoutCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _assert_owned_exercises(db, current_user.id, {s.exercise_id for s in workout.sets})
 
     db_workout = models.Workout(
         date=workout.date or datetime.utcnow(),
         notes=workout.notes,
         bodyweight=workout.bodyweight,
-        profile_id=profile_id,
+        user_id=current_user.id,
     )
     db.add(db_workout)
     db.flush()
@@ -88,18 +100,19 @@ def create_workout(profile_id: int, workout: schemas.WorkoutCreate, db: Session 
 
 @router.put("/{workout_id}", response_model=schemas.Workout)
 def update_workout(
-    workout_id: int, profile_id: int, workout_update: schemas.WorkoutCreate, db: Session = Depends(get_db)
+    workout_id: int,
+    workout_update: schemas.WorkoutCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
     workout = db.query(models.Workout).filter(
         models.Workout.id == workout_id,
-        models.Workout.profile_id == profile_id
+        models.Workout.user_id == current_user.id
     ).first()
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
+
+    _assert_owned_exercises(db, current_user.id, {s.exercise_id for s in workout_update.sets})
 
     workout.date = workout_update.date or workout.date
     workout.notes = workout_update.notes
@@ -130,14 +143,14 @@ def update_workout(
 
 
 @router.delete("/{workout_id}", status_code=204)
-def delete_workout(workout_id: int, profile_id: int, db: Session = Depends(get_db)):
-    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
+def delete_workout(
+    workout_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     workout = db.query(models.Workout).options(joinedload(models.Workout.sets)).filter(
         models.Workout.id == workout_id,
-        models.Workout.profile_id == profile_id
+        models.Workout.user_id == current_user.id
     ).first()
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")

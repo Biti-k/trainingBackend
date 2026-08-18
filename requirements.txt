@@ -6,3 +6,8 @@ numpy==2.1.2
 pandas==2.2.3
 alembic==1.18.4
 google-generativeai
+psycopg2-binary
+pyjwt
+google-auth
+google-auth-oauthlib
+requests
