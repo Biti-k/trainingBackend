@@ -8,7 +8,7 @@ The API behind [trainingFront](https://github.com/Biti-k/trainingFront): a FastA
 - **Exercises & workouts** — full CRUD, scoped per user (every query filters by the authenticated user's ID, so one account can never read or modify another's data).
 - **Exercise catalog** — a seeded reference table of common exercises (muscle group, equipment, instructions, images) that users can pull from instead of creating exercises from scratch.
 - **Analytics** — workout summary, volume-by-exercise over time, progression stats, bodyweight trend, and per-exercise strength metrics.
-- **AI assistant** (Gemini) — free-form chat, an automatic progress analysis, and a next-workout suggestion, each built from the user's actual last 30 days of training data. Rate-limited to 8 requests/hour per user across all three endpoints to keep API cost predictable.
+- **AI assistant** (Gemini) — free-form chat that allows you analyze and talk about your workouts, built from the user's actual last 30 days of training data. Rate-limited to 8 requests/hour per user across all three endpoints to keep API cost predictable.
 
 ## Tech stack
 
