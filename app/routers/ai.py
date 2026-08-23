@@ -1,3 +1,6 @@
+import time
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -15,6 +18,26 @@ router = APIRouter(prefix="/ai", tags=["AI"])
 # ── Configuración del cliente Gemini ──────────────────────────────────────────
 
 _client = genai.Client(api_key=os.getenv("API_GEMINI"))
+
+# ── Rate limiting (protege la cuota/coste de la API de Gemini) ────────────────
+# Límite compartido entre los tres endpoints de IA, por usuario.
+
+_AI_RATE_LIMIT = 8
+_AI_RATE_WINDOW_SECONDS = 60 * 60
+_ai_usage: dict[int, list[float]] = defaultdict(list)
+
+
+def enforce_ai_rate_limit(current_user: models.User = Depends(get_current_user)) -> models.User:
+    now = time.time()
+    timestamps = _ai_usage[current_user.id]
+    timestamps[:] = [t for t in timestamps if now - t < _AI_RATE_WINDOW_SECONDS]
+    if len(timestamps) >= _AI_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Límite de {_AI_RATE_LIMIT} solicitudes de IA por hora alcanzado. Inténtalo más tarde.",
+        )
+    timestamps.append(now)
+    return current_user
 
 _SYSTEM_INSTRUCTION = (
     "Eres un asistente experto en fitness y entrenamiento de fuerza. "
@@ -107,7 +130,7 @@ def _call_gemini(prompt: str) -> str:
 def chat(
     request: ChatRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(enforce_ai_rate_limit),
 ):
     """
     Chat libre con el asistente de fitness, con contexto de tus últimos entrenos.
@@ -126,7 +149,7 @@ def chat(
 )
 def analyze_progress(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(enforce_ai_rate_limit),
 ):
     """
     Analiza los últimos 30 días de entrenos del usuario y devuelve:
@@ -157,7 +180,7 @@ def analyze_progress(
 )
 def suggest_next_workout(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(enforce_ai_rate_limit),
 ):
     """
     Basándose en el historial reciente, sugiere qué entrenar en la próxima sesión
