@@ -129,7 +129,7 @@ def get_progression_stats(
         )
 
         est_1rm = float(
-            np.max(group["weight"] * (1 + group["reps"] / 30))
+            np.max(np.where(group["reps"] == 1, group["weight"], group["weight"] * (1 + group["reps"] / 30)))
         ) if len(group) else None
 
         results.append({
@@ -194,7 +194,7 @@ def get_strength_metrics(db: Session, user_id: int, exercise_name: str) -> dict:
         for s, w in rows
     ]
     df = pd.DataFrame(data).sort_values("date")
-    df["est_1rm"] = df["weight"] * (1 + df["reps"] / 30)
+    df["est_1rm"] = np.where(df["reps"] == 1, df["weight"], df["weight"] * (1 + df["reps"] / 30))
 
     return {
         "exercise_name": exercise_name,
